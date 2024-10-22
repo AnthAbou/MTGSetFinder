@@ -9,7 +9,6 @@ var allCards = new List<MtgCard>();
 var allSets = new List<MtgCardSetInfo>();
 var readPath = @"%userprofile%\mtgcards.txt";
 var writePath = @"%userprofile%\cardswithsets.txt";
-var highestSetCount = 0;
 
 Console.WriteLine("getting cards from file...");
 using (var inputReader = new StreamReader(Environment.ExpandEnvironmentVariables(readPath)))
@@ -19,7 +18,26 @@ using (var inputReader = new StreamReader(Environment.ExpandEnvironmentVariables
         var line = inputReader.ReadLine();
         //skip cards that have way too many fucking printings
         if (line.ToLowerInvariant() == "sol ring" || line.ToLowerInvariant() == "plains" || line.ToLowerInvariant() == "island" || line.ToLowerInvariant() == "swamp" || line.ToLowerInvariant() == "mountain" || line.ToLowerInvariant() == "forest" || line.ToLowerInvariant() == "wastes" || line.ToLowerInvariant() == "command tower")
-            continue;
+        {
+            var cardId = Guid.NewGuid();
+            allCards.Add(
+                new MtgCard()
+                {
+                    Name = line,
+                    oracle_id = cardId,
+                    SetInfo = new List<MtgCardSetInfo>() {
+                        new MtgCardSetInfo() {
+                            SetName = "excluded",
+                            oracle_id = cardId
+                        }
+                    }
+                });
+            allSets.Add(new MtgCardSetInfo()
+            {
+                SetName = "excluded",
+                oracle_id = cardId
+            });
+        }
         else
             cardNames.Add(line);
     }
@@ -36,8 +54,6 @@ foreach (var cardName in cardNames)
     var newCard = new MtgCard();
     newCard.Name = baseCard.name;
     newCard.oracle_id = baseCard.oracle_id;
-    if (sets.data.Count() > highestSetCount)
-        highestSetCount = sets.data.Count();
     foreach (var set in sets.data)
     {
         //exclude secret lair drops and the list
@@ -53,7 +69,6 @@ foreach (var cardName in cardNames)
 
 Console.WriteLine("sorting");
 //determine which sets have the most cards
-var setDict = new Dictionary<string, int>();
 var distinctSets = allCards.Select(o => o.SetInfo.Select(o => o.SetName).Distinct()).ToList();
 
 var groupedSetInfo = allSets.GroupBy(o => o.SetName).ToList().OrderByDescending(g => g.Count()).ToList();
@@ -63,13 +78,6 @@ StringBuilder sb = new StringBuilder();
 
 //remove card id from every set it exists in after adding line
 var alreadyAddedCards = new List<Guid>();
-Console.WriteLine(highestSetCount);
-sb.Append($"Card Name\t");
-for (int i=0; i< highestSetCount; i++)
-{
-    sb.Append("Set Name\tCard Number");
-}
-sb.AppendLine();
 foreach (var set in groupedSetInfo)
 {
     foreach (var info in set)
