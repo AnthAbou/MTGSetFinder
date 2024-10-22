@@ -40,8 +40,8 @@ foreach (var cardName in cardNames)
         highestSetCount = sets.data.Count();
     foreach (var set in sets.data)
     {
-        //exclude secret lair drops
-        if (set.set.ToLowerInvariant() == "secret lair drop")
+        //exclude secret lair drops and the list
+        if (set.set.ToLowerInvariant() == "secret lair drop" || set.set.ToLowerInvariant() == "the list")
             continue;
         var setInfo = new MtgCardSetInfo() { Rarity = set.rarity, SetName = set.set, SetNumber = set.collector_number, oracle_id = set.oracle_id };
         newCard.SetInfo.Add(setInfo);
