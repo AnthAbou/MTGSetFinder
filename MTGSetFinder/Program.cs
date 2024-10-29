@@ -118,12 +118,15 @@ foreach (var set in groupedSetInfo)
             int setCount = 0;
             foreach (var setinfo in card.SetInfo)
             {
-               
+                if (setCount < 5)
+                {
                     cardWithAllSets += ($"({setinfo.SetName}-{setinfo.SetNumber}) ");
                     sb.Append($"{setinfo.SetName}-{setinfo.SetNumber} ({setinfo.CardPrice.usd ?? "-"} | {setinfo.CardPrice.usd_foil ?? "-"} | {setinfo.CardPrice.usd_etched ?? "-"}) \t");
 
                     setCount++;
-               
+                }
+                else
+                    continue;
             }
             sb.Replace("{placeholder}", cardWithAllSets);
             sb.AppendLine();
