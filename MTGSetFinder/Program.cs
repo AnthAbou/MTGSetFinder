@@ -49,21 +49,39 @@ foreach (var cardName in cardNames)
     Console.WriteLine($"Looking up: {cardName}");
     var baseCard = await scryfallApi.GetCardByName(cardName);
     Console.WriteLine($"Oracle id: {baseCard.oracle_id}");
-    var sets = await scryfallApi.GetSetsForCardByOracleID(baseCard.oracle_id);
+    var scryFallCardsByOracleID = await scryfallApi.GetSetsForCardByOracleID(baseCard.oracle_id);
 
     var newCard = new MtgCard();
     newCard.Name = baseCard.name;
     newCard.oracle_id = baseCard.oracle_id;
-    foreach (var set in sets.data)
+    var addedSetNamesForThisCard = new List<string>();
+    
+    foreach (var scryfallCard in scryFallCardsByOracleID.data)
     {
         //exclude secret lair drops and the list
-        if (set.set.ToLowerInvariant() == "secret lair drop" || set.set.ToLowerInvariant() == "the list")
+        if (scryfallCard.set.ToLowerInvariant() == "sld" || scryfallCard.set.ToLowerInvariant() == "prm" || scryfallCard.set.ToLowerInvariant() == "plst" || scryfallCard.set.ToLowerInvariant().Contains("wc") || scryfallCard.set.Length > 3 || scryfallCard.set.ToLowerInvariant() == "ptc")
             continue;
-        var setInfo = new MtgCardSetInfo() { Rarity = set.rarity, SetName = set.set, SetNumber = set.collector_number, oracle_id = set.oracle_id };
+
+        addedSetNamesForThisCard.Add(scryfallCard.set);
+
+        var setInfo = new MtgCardSetInfo()
+        {
+            SetName = scryfallCard.set,
+            oracle_id = scryfallCard.oracle_id,
+            Rarity = scryfallCard.rarity,
+            //SetNumber = Encoding.UTF8.GetString(Encoding.Default.GetBytes(scryfallCard.collector_number)),
+            SetNumber = scryfallCard.collector_number,
+            CardPrice = new ScryfallPrice()
+            {
+                usd = scryfallCard.prices.usd,
+                usd_foil = scryfallCard.prices.usd_foil,
+                usd_etched = scryfallCard.prices.usd_etched
+            }
+        };
         newCard.SetInfo.Add(setInfo);
         allSets.Add(setInfo);
     }
-    newCard.SetInfo = newCard.SetInfo.OrderBy(o => o.SetName).ThenBy(o => o.SetNumber).ToList();
+    newCard.SetInfo = newCard.SetInfo.OrderBy(o => o.LowestPrice).ThenBy(o => o.SetName).ToList();
     allCards.Add(newCard);
 }
 
@@ -77,28 +95,43 @@ var setNameSortOrder = groupedSetInfo.Select(x => x.Key).ToList();
 StringBuilder sb = new StringBuilder();
 
 //remove card id from every set it exists in after adding line
+var finalizedList = new List<FinalizedCard>();
 var alreadyAddedCards = new List<Guid>();
+sb.AppendLine("Card Name\tPull List\tLowest Price\tHigest Price\tSet1\tSet2\tSet3\tSet4\tSet5");
 foreach (var set in groupedSetInfo)
 {
     foreach (var info in set)
     {
         if (!alreadyAddedCards.Contains(info.oracle_id)) 
-        { 
+        {
             var card = allCards.Where(s => s.oracle_id == info.oracle_id).FirstOrDefault();
             if (card is null)
                 continue;
 
+            var cardWithAllSets = $"{card.Name} - ";
             sb.Append($"{card.Name}\t");
-            card.SetInfo = card.SetInfo.OrderBy(s => setNameSortOrder.IndexOf(s.SetName)).ToList();
+            sb.Append("{placeholder}\t");
+            sb.Append($"{card.LowestPrice}\t{card.HighestPrice}\t");
+
+            card.SetInfo = card.SetInfo.OrderBy(o => o.LowestPrice).ThenBy(s => setNameSortOrder.IndexOf(s.SetName)).ToList();
+            //card.SetInfo = card.SetInfo.OrderBy(s => setNameSortOrder.IndexOf(s.SetName)).ThenBy(o => o.LowestPrice).ToList();
+            int setCount = 0;
             foreach (var setinfo in card.SetInfo)
             {
-                sb.Append($"{setinfo.SetName}\t{setinfo.Rarity}-{setinfo.SetNumber}\t");
+               
+                    cardWithAllSets += ($"({setinfo.SetName}-{setinfo.SetNumber}) ");
+                    sb.Append($"{setinfo.SetName}-{setinfo.SetNumber} ({setinfo.CardPrice.usd ?? "-"} | {setinfo.CardPrice.usd_foil ?? "-"} | {setinfo.CardPrice.usd_etched ?? "-"}) \t");
+
+                    setCount++;
+               
             }
+            sb.Replace("{placeholder}", cardWithAllSets);
             sb.AppendLine();
             alreadyAddedCards.Add(info.oracle_id);
         }
     }
 }
+
 //write to file
 Console.WriteLine("writing");
 using (StreamWriter outputFile = new StreamWriter(Environment.ExpandEnvironmentVariables(writePath)))

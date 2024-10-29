@@ -11,9 +11,9 @@ namespace MTGSetFinder.DTOs
     {
         public string? name { get; set; }
         public Guid oracle_id { get; set; }
-        [JsonPropertyName("set_name")]
         public string? set { get; set; }
         public string collector_number { get; set; }
         public string rarity { get; set; }
+        public ScryfallPrice prices { get; set; } = new ScryfallPrice(); 
     }
 }

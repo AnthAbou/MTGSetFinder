@@ -11,5 +11,7 @@ namespace MTGSetFinder.DTOs
         public string Name { get; set; }
         public List<MtgCardSetInfo> SetInfo { get; set; } = new List<MtgCardSetInfo>();
         public Guid oracle_id { get; set; }
+        public double LowestPrice => SetInfo.Min(x => x.LowestPrice);
+        public double HighestPrice => SetInfo.Max(x => x.HighestPrice);
     }
 }
