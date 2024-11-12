@@ -17,7 +17,7 @@ using (var inputReader = new StreamReader(Environment.ExpandEnvironmentVariables
     {
         var line = inputReader.ReadLine();
         //skip cards that have way too many fucking printings
-        if (line.ToLowerInvariant() == "sol ring" || line.ToLowerInvariant() == "plains" || line.ToLowerInvariant() == "island" || line.ToLowerInvariant() == "swamp" || line.ToLowerInvariant() == "mountain" || line.ToLowerInvariant() == "forest" || line.ToLowerInvariant() == "wastes" || line.ToLowerInvariant() == "command tower")
+        if (line.ToLowerInvariant() == "plains" || line.ToLowerInvariant() == "island" || line.ToLowerInvariant() == "swamp" || line.ToLowerInvariant() == "mountain" || line.ToLowerInvariant() == "forest" || line.ToLowerInvariant() == "wastes")
         {
             var cardId = Guid.NewGuid();
             allCards.Add(
@@ -46,43 +46,50 @@ using (var inputReader = new StreamReader(Environment.ExpandEnvironmentVariables
 Console.WriteLine("looking up cards and sets...");
 foreach (var cardName in cardNames)
 {
-    Console.WriteLine($"Looking up: {cardName}");
-    var baseCard = await scryfallApi.GetCardByName(cardName);
-    Console.WriteLine($"Oracle id: {baseCard.oracle_id}");
-    var scryFallCardsByOracleID = await scryfallApi.GetSetsForCardByOracleID(baseCard.oracle_id);
-
-    var newCard = new MtgCard();
-    newCard.Name = baseCard.name;
-    newCard.oracle_id = baseCard.oracle_id;
-    var addedSetNamesForThisCard = new List<string>();
-    
-    foreach (var scryfallCard in scryFallCardsByOracleID.data)
+    try
     {
-        //exclude secret lair drops and the list
-        if (scryfallCard.set.ToLowerInvariant() == "sld" || scryfallCard.set.ToLowerInvariant() == "prm" || scryfallCard.set.ToLowerInvariant() == "plst" || scryfallCard.set.ToLowerInvariant().Contains("wc") || scryfallCard.set.Length > 3 || scryfallCard.set.ToLowerInvariant() == "ptc")
-            continue;
+        Console.WriteLine($"Looking up: {cardName}");
+        var baseCard = await scryfallApi.GetCardByName(cardName);
+        Console.WriteLine($"Oracle id: {baseCard.oracle_id}");
+        var scryFallCardsByOracleID = await scryfallApi.GetSetsForCardByOracleID(baseCard.oracle_id);
 
-        addedSetNamesForThisCard.Add(scryfallCard.set);
+        var newCard = new MtgCard();
+        newCard.Name = baseCard.name;
+        newCard.oracle_id = baseCard.oracle_id;
+        var addedSetNamesForThisCard = new List<string>();
 
-        var setInfo = new MtgCardSetInfo()
+        foreach (var scryfallCard in scryFallCardsByOracleID.data)
         {
-            SetName = scryfallCard.set,
-            oracle_id = scryfallCard.oracle_id,
-            Rarity = scryfallCard.rarity,
-            //SetNumber = Encoding.UTF8.GetString(Encoding.Default.GetBytes(scryfallCard.collector_number)),
-            SetNumber = scryfallCard.collector_number,
-            CardPrice = new ScryfallPrice()
+            //exclude secret lair drops and the list
+            if (scryfallCard.set.ToLowerInvariant() == "sld" || scryfallCard.set.ToLowerInvariant() == "prm" || scryfallCard.set.ToLowerInvariant() == "plst" || scryfallCard.set.ToLowerInvariant().Contains("wc") || scryfallCard.set.Length > 3 || scryfallCard.set.ToLowerInvariant() == "ptc")
+                continue;
+
+            addedSetNamesForThisCard.Add(scryfallCard.set);
+
+            var setInfo = new MtgCardSetInfo()
             {
-                usd = scryfallCard.prices.usd,
-                usd_foil = scryfallCard.prices.usd_foil,
-                usd_etched = scryfallCard.prices.usd_etched
-            }
-        };
-        newCard.SetInfo.Add(setInfo);
-        allSets.Add(setInfo);
+                SetName = scryfallCard.set,
+                oracle_id = scryfallCard.oracle_id,
+                Rarity = scryfallCard.rarity,
+                //SetNumber = Encoding.UTF8.GetString(Encoding.Default.GetBytes(scryfallCard.collector_number)),
+                SetNumber = scryfallCard.collector_number,
+                CardPrice = new ScryfallPrice()
+                {
+                    usd = scryfallCard.prices.usd,
+                    usd_foil = scryfallCard.prices.usd_foil,
+                    usd_etched = scryfallCard.prices.usd_etched
+                }
+            };
+            newCard.SetInfo.Add(setInfo);
+            allSets.Add(setInfo);
+        }
+        newCard.SetInfo = newCard.SetInfo.OrderBy(o => o.LowestPrice).ThenBy(o => o.SetName).ToList();
+        allCards.Add(newCard);
     }
-    newCard.SetInfo = newCard.SetInfo.OrderBy(o => o.LowestPrice).ThenBy(o => o.SetName).ToList();
-    allCards.Add(newCard);
+    catch (Exception ex)
+    {
+        continue;
+    }
 }
 
 Console.WriteLine("sorting");
@@ -102,7 +109,7 @@ foreach (var set in groupedSetInfo)
 {
     foreach (var info in set)
     {
-        if (!alreadyAddedCards.Contains(info.oracle_id)) 
+        if (!alreadyAddedCards.Contains(info.oracle_id))
         {
             var card = allCards.Where(s => s.oracle_id == info.oracle_id).FirstOrDefault();
             if (card is null)
@@ -141,4 +148,5 @@ using (StreamWriter outputFile = new StreamWriter(Environment.ExpandEnvironmentV
 {
     outputFile.WriteLine(sb.ToString());
 }
+
 Console.WriteLine("done");
