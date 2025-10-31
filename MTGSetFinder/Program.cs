@@ -9,7 +9,18 @@ var allCards = new List<MtgCard>();
 var allSets = new List<MtgCardSetInfo>();
 var readPath = @"%userprofile%\mtgcards.txt";
 var writePath = @"%userprofile%\cardswithsets.txt";
-
+var myBulk = new List<string>(new string[]
+{
+    "ori",
+    "ogw",
+    "bfz",
+    "ktk",
+    "dtk",
+    "m15",
+    "dsc",
+    "tdm",
+    "tdc"
+});
 Console.WriteLine("getting cards from file...");
 using (var inputReader = new StreamReader(Environment.ExpandEnvironmentVariables(readPath)))
 {
@@ -61,7 +72,7 @@ foreach (var cardName in cardNames)
         foreach (var scryfallCard in scryFallCardsByOracleID.data)
         {
             //exclude secret lair drops and the list
-            if (scryfallCard.set.ToLowerInvariant() == "sld" || scryfallCard.set.ToLowerInvariant() == "prm" || scryfallCard.set.ToLowerInvariant() == "plst" || scryfallCard.set.ToLowerInvariant().Contains("wc") || scryfallCard.set.Length > 3 || scryfallCard.set.ToLowerInvariant() == "ptc")
+            if (scryfallCard.set.ToLowerInvariant() == "sld" || scryfallCard.set.ToLowerInvariant() == "prm" || scryfallCard.set.ToLowerInvariant().Contains("wc") || scryfallCard.set.ToLowerInvariant() == "ptc")
                 continue;
 
             addedSetNamesForThisCard.Add(scryfallCard.set);
@@ -104,7 +115,7 @@ StringBuilder sb = new StringBuilder();
 //remove card id from every set it exists in after adding line
 var finalizedList = new List<FinalizedCard>();
 var alreadyAddedCards = new List<Guid>();
-sb.AppendLine("Card Name\tPull List\tLowest Price\tHigest Price\tSet1\tSet2\tSet3\tSet4\tSet5");
+sb.AppendLine("Card Name\tPull List\tArchidekt\tLowest Price\tHigest Price\tSet1\tSet2\tSet3\tSet4\tSet5");
 foreach (var set in groupedSetInfo)
 {
     foreach (var info in set)
@@ -116,8 +127,10 @@ foreach (var set in groupedSetInfo)
                 continue;
 
             var cardWithAllSets = $"{card.Name} - ";
+            var archidektImport = $"1x {card.Name}";
             sb.Append($"{card.Name}\t");
             sb.Append("{placeholder}\t");
+            sb.Append("{ArchidektImport}\t");
             sb.Append($"{card.LowestPrice}\t{card.HighestPrice}\t");
 
             card.SetInfo = card.SetInfo.OrderBy(o => o.LowestPrice).ThenBy(s => setNameSortOrder.IndexOf(s.SetName)).ToList();
@@ -125,6 +138,18 @@ foreach (var set in groupedSetInfo)
             int setCount = 0;
             foreach (var setinfo in card.SetInfo)
             {
+                if (setCount == 0)
+                {
+                    if (card.SetInfo.Any(s => myBulk.Contains(s.SetName)))
+                    {
+                        archidektImport += $" ({setinfo.SetName})**";
+                    }
+                    else
+                    {
+                        archidektImport += $" ({setinfo.SetName})";
+
+                    }
+                }
                 if (setCount < 5)
                 {
                     cardWithAllSets += ($"({setinfo.SetName}-{setinfo.SetNumber}) ");
@@ -135,6 +160,7 @@ foreach (var set in groupedSetInfo)
                 else
                     continue;
             }
+            sb.Replace("{ArchidektImport}", archidektImport);
             sb.Replace("{placeholder}", cardWithAllSets);
             sb.AppendLine();
             alreadyAddedCards.Add(info.oracle_id);
