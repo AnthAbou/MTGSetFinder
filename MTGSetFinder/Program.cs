@@ -9,6 +9,7 @@ var allCards = new List<MtgCard>();
 var allSets = new List<MtgCardSetInfo>();
 var readPath = @"%userprofile%\mtgcards.txt";
 var writePath = @"%userprofile%\cardswithsets.txt";
+var easyPullWritePath = @"%userprofile%\easypull-cardswithsets.txt";
 var myBulk = new List<string>(new string[]
 {
     "ori",
@@ -19,7 +20,12 @@ var myBulk = new List<string>(new string[]
     "m15",
     "dsc",
     "tdm",
-    "tdc"
+    "tds",
+    "dsk",
+    "fdn",
+    "tla",
+    "emn",
+    "soi"
 });
 Console.WriteLine("getting cards from file...");
 using (var inputReader = new StreamReader(Environment.ExpandEnvironmentVariables(readPath)))
@@ -112,6 +118,8 @@ var setNameSortOrder = groupedSetInfo.Select(x => x.Key).ToList();
 
 StringBuilder sb = new StringBuilder();
 
+//build a list to order kept cards by set regardless of price
+var bySetLowestCost = new List<CardAndSetInfo>();
 //remove card id from every set it exists in after adding line
 var finalizedList = new List<FinalizedCard>();
 var alreadyAddedCards = new List<Guid>();
@@ -152,7 +160,11 @@ foreach (var set in groupedSetInfo)
                 }
                 if (setCount < 5)
                 {
-                    cardWithAllSets += ($"({setinfo.SetName}-{setinfo.SetNumber}) ");
+                    if (setCount == 0)
+                    {
+                        bySetLowestCost.Add(new CardAndSetInfo(card.Name, setinfo.SetName, setinfo.SetNumber, setinfo));
+                    }
+                    cardWithAllSets += ($"({setinfo.SetName}-{setinfo.SetNumber}{(setinfo.GetPrinting() != "" ? $" {setinfo.GetPrinting()})" : ")")} ");
                     sb.Append($"{setinfo.SetName}-{setinfo.SetNumber} ({setinfo.CardPrice.usd ?? "-"} | {setinfo.CardPrice.usd_foil ?? "-"} | {setinfo.CardPrice.usd_etched ?? "-"}) \t");
 
                     setCount++;
@@ -167,12 +179,24 @@ foreach (var set in groupedSetInfo)
         }
     }
 }
-
+var sorted = bySetLowestCost.GroupBy(z => z.Set).ToList().OrderByDescending(z => z.Count());
+var sb2 = new StringBuilder();
+sb2.AppendLine($"Set\tName\tNumber\t\tPrinting");
+foreach (var set in sorted)
+{
+    foreach (var card in set) {
+        sb2.AppendLine($"{set.Key}\t{card.Name}\t{card.Number}\t{card.Cost}\t{card.GetCardType()}");
+    }
+}
 //write to file
 Console.WriteLine("writing");
 using (StreamWriter outputFile = new StreamWriter(Environment.ExpandEnvironmentVariables(writePath)))
 {
     outputFile.WriteLine(sb.ToString());
+}
+using (StreamWriter outputFile = new StreamWriter(Environment.ExpandEnvironmentVariables(easyPullWritePath)))
+{
+    outputFile.WriteLine(sb2.ToString());
 }
 
 Console.WriteLine("done");

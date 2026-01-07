@@ -19,5 +19,30 @@ namespace MTGSetFinder.DTOs
         public double LowestPrice { get => Math.Min(double.Parse(CardPrice.usd ?? double.MaxValue.ToString()), Math.Min(double.Parse(CardPrice.usd_foil ?? double.MaxValue.ToString()), double.Parse(CardPrice.usd_etched ?? double.MaxValue.ToString()))); }
 
         public double HighestPrice { get => Math.Max(double.Parse(CardPrice.usd ?? double.MinValue.ToString()), Math.Max(double.Parse(CardPrice.usd_foil ?? double.MinValue.ToString()), double.Parse(CardPrice.usd_etched ?? double.MinValue.ToString()))); }
+
+        public string GetPrinting()
+        {
+            if (CardPrice != null)
+            {
+                var standard = double.Parse(CardPrice.usd ?? double.MaxValue.ToString());
+                var foil = double.Parse(CardPrice.usd_foil ?? double.MaxValue.ToString());
+                var etched = double.Parse(CardPrice.usd_etched ?? double.MaxValue.ToString());
+
+                if (Math.Min(standard, foil) == standard && Math.Min(standard, etched) == standard)
+                {
+                    return "";
+                }
+                if (Math.Min(foil, standard) == foil && Math.Min(foil, etched) == foil)
+                {
+                    return "(foil)";
+                }
+                if (Math.Min(etched, standard) == etched && Math.Min(etched, foil) == etched)
+                {
+                    return "(etched)";
+                }
+            }
+            return "";
+        }
+
     }
 }
